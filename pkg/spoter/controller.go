@@ -2,6 +2,7 @@ package spoter
 
 import (
   "context"
+  "fmt"
   "os"
 
   log "github.com/sirupsen/logrus"
@@ -22,7 +23,7 @@ type spoterController struct {
 }
 
 func NewSpoterController(config *ControllerConfig) (SpoterControllerInterface, error) {
-  if checkControllerConfig(config) != nil {
+  if err := checkControllerConfig(config); err != nil {
     return nil, fmt.Errorf("config failed with %v", err)
   }
   return &spoterController{

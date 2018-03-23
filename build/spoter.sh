@@ -6,8 +6,8 @@ IMG_NAME=spoter-controller:${TAG}
 ORIGINDIR=$(pwd)
 
 # build image
-cp ./release/spoter-controller ./dockerfiles/spoter/
-cd ./dockerfiles/spoter/
+cp ./release/spoter ./dockerfile/spoter-controller
+cd ./dockerfile
 docker build -t ${IMG_NAME} .
 rm ./spoter-controller
 cd ${ORIGINDIR}

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
   "context"
 
 	log "github.com/sirupsen/logrus"
@@ -20,8 +21,8 @@ var serverCmd = &cobra.Command{
 	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		newLog := log.New()
-		newlog.SetLevel(log.Level(debugLevel))
-		logger := newlog.WithFields(log.Fields{
+		newLog.SetLevel(log.Level(debugLevel))
+		logger := newLog.WithFields(log.Fields{
 			"app": "spoter",
 		})
 
