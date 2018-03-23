@@ -38,7 +38,7 @@ var serverCmd = &cobra.Command{
       ConfigFile: configFile,
 			Logger:     logger,
 		}
-		server, err := spoter.NewController(cfg)
+		controller, err := spoter.NewSpoterController(cfg)
 		if err != nil {
 			return err
 		}
@@ -46,7 +46,7 @@ var serverCmd = &cobra.Command{
 		ctx := context.TODO()
 		quit := make(chan struct{})
 
-		return server.Serve(ctx, quit)
+		return controller.Serve(ctx, quit)
 	},
 }
 
