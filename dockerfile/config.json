@@ -1,0 +1,8 @@
+{
+  "model": {
+    "ecs.g5.large": 2,
+    "ecs.t5-lc1m1.small": 5,
+    "ecs.d1ne.8xlarge": 3
+  },
+  "checkInterval": 30,
+}
