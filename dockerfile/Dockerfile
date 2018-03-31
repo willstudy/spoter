@@ -5,6 +5,9 @@ RUN mkdir -p /home/spoter
 ADD ./install-basic.sh /home/spoter/install-basic.sh
 RUN sh /home/spoter/install-basic.sh
 
+ADD ./install-aliyun-base.sh /home/spoter/install-aliyun-base.sh
+RUN sh /home/spoter/install-aliyun-base.sh
+
 ADD ./spoter-supervisor.conf /etc/supervisor/conf.d/
 ADD ./run-spoter-controller.sh /home/spoter/run-spoter-controller.sh
 ADD ./config.json /home/spoter/config.json
