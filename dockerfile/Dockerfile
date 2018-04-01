@@ -8,6 +8,9 @@ RUN sh /home/spoter/install-basic.sh
 ADD ./install-aliyun-base.sh /home/spoter/install-aliyun-base.sh
 RUN sh /home/spoter/install-aliyun-base.sh
 
+RUN mkdir -p /home/spoter/k8s-base
+ADD ./k8s-base /home/spoter/k8s-base
+
 ADD ./spoter-supervisor.conf /etc/supervisor/conf.d/
 ADD ./run-spoter-controller.sh /home/spoter/run-spoter-controller.sh
 ADD ./config.json /home/spoter/config.json
