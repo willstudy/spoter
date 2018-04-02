@@ -1,15 +1,15 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"os"
-  "context"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-  "github.com/willstudy/spoter/pkg/configs"
-  "github.com/willstudy/spoter/pkg/spoter"
+	"github.com/willstudy/spoter/pkg/configs"
+	"github.com/willstudy/spoter/pkg/spoter"
 )
 
 var configFile string
@@ -26,17 +26,16 @@ var serverCmd = &cobra.Command{
 			"app": "spoter",
 		})
 
-		kubeConfig := os.Getenv(configs.KubeConfig)
-		if kubeConfig == "" {
+		if _, err := os.Stat(configs.KubeConfig); err != nil {
 			return fmt.Errorf("Can not find kube config, please provide kube config file.")
 		}
 
-    if configFile == "" {
-      return fmt.Errorf("Can not find args for --configFile, please provide config file.")
-    }
+		if configFile == "" {
+			return fmt.Errorf("Can not find args for --configFile, please provide config file.")
+		}
 
 		cfg := &spoter.ControllerConfig{
-      ConfigFile: configFile,
+			ConfigFile: configFile,
 			Logger:     logger,
 		}
 		controller, err := spoter.NewSpoterController(cfg)

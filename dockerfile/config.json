@@ -1,8 +1,17 @@
 {
   "model": {
-    "ecs.g5.large": 2,
-    "ecs.t5-lc1m1.small": 5,
-    "ecs.d1ne.8xlarge": 3
+    "ecs.g5.large": {
+      "num": 2,
+      "price": 0.18
+    },
+    "ecs.t5-lc1m1.small": {
+      "num": 5,
+      "price": 0.10
+    },
+    "ecs.d1ne.8xlarge": {
+      "num": 3,
+      "price": 0.20
+    }
   },
-  "checkInterval": 30,
+  "checkInterval": 30
 }

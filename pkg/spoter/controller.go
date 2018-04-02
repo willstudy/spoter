@@ -9,6 +9,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/willstudy/spoter/pkg/common"
+	"github.com/willstudy/spoter/pkg/configs"
 )
 
 type SpoterControllerInterface interface {
@@ -69,8 +72,34 @@ func (s *spoterController) parseConfigs() (SpoterConfig, error) {
 }
 
 func (s *spoterController) getClusterStatus() (SpoterModel, error) {
+	logger := s.logger.WithFields(log.Fields{
+		"func": "getClusterStatus",
+	})
+
 	var r SpoterModel
-	// TODO: get cluster status
+	retry := 3
+	cmds := []string{
+		configs.TimeCMD,
+		configs.TimeoutS,
+		configs.KubectlCMD,
+		"--kubeconfig=" + configs.KubeConfig,
+		"get",
+		"no",
+	}
+	logger.Infof("CMD: %v.", cmds)
+
+	ctx := context.TODO()
+	for i := 0; i < retry; i++ {
+		//output, err := common.ExecCmd(ctx, cmds)
+		_, err := common.ExecCmd(ctx, cmds)
+		if err != nil {
+			logger.Warnf("Try %d time, error: %v.", i, err)
+		} else {
+			// TODO output -> SpoterModel
+			return r, nil
+		}
+	}
+
 	return r, nil
 }
 
