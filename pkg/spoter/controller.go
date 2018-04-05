@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -76,7 +77,7 @@ func (s *spoterController) getClusterStatus() (SpoterModel, error) {
 		"func": "getClusterStatus",
 	})
 
-	var r SpoterModel
+	r := make(map[string]MachineInfo)
 	retry := 3
 	cmds := []string{
 		configs.TimeCMD,
@@ -85,26 +86,69 @@ func (s *spoterController) getClusterStatus() (SpoterModel, error) {
 		"--kubeconfig=" + configs.KubeConfig,
 		"get",
 		"no",
+		"--show-labels",
 	}
 	logger.Infof("CMD: %v.", cmds)
 
 	ctx := context.TODO()
 	for i := 0; i < retry; i++ {
-		//output, err := common.ExecCmd(ctx, cmds)
-		_, err := common.ExecCmd(ctx, cmds)
+		output, err := common.ExecCmd(ctx, cmds)
 		if err != nil {
 			logger.Warnf("Try %d time, error: %v.", i, err)
 		} else {
-			// TODO output -> SpoterModel
+			lines := strings.Split(output, "\n")
+			for _, line := range lines {
+				if !strings.Contains(line, configs.AliyunECSLabel) {
+					continue
+				}
+				logger.Debugf("line: %s", line)
+				fields := strings.Split(line, " ")
+				logger.Debugf("labels: %s", fields[len(fields)-1])
+				labels := strings.Split(fields[len(fields)-1], ",")
+				for _, field := range labels {
+					if strings.Contains(field, configs.AliyunECSLabel) {
+						logger.Debugf("label: %s", field)
+						keys := strings.Split(field, "=")
+						if _, ok := r[keys[0]]; ok {
+							m := r[keys[1]]
+							m.Num += 1
+							r[keys[1]] = m
+						} else {
+							var m MachineInfo
+							m.Num = 1
+							r[keys[1]] = m
+						}
+					}
+				}
+			}
 			return r, nil
 		}
 	}
-
+	logger.Debugf("result: %v", r)
 	return r, nil
 }
 
 func (s *spoterController) rebalance(config, status SpoterModel) {
-	// TODO: rebalance the k8s cluster
+	logger := s.logger.WithFields(log.Fields{
+		"func": "rebalance",
+	})
+
+	for label, machineInfo := range config {
+		if _, ok := status[label]; !ok {
+			for i := 0; int32(i) < machineInfo.Num; i++ {
+				logger.Infof("Add a machine, label: %s, price: %v\n", label, machineInfo.Price)
+				s.joinNode(label, machineInfo.Price)
+			}
+		} else {
+			delta := machineInfo.Num - status[label].Num
+			if delta > 0 {
+				for i := 0; int32(i) < delta; i++ {
+					logger.Infof("Add a machine, label: %s, price: %v\n", label, machineInfo.Price)
+					s.joinNode(label, machineInfo.Price)
+				}
+			}
+		}
+	}
 	return
 }
 

@@ -1,15 +1,15 @@
 {
   "model": {
-    "ecs.g5.large": {
-      "num": 2,
-      "price": 0.18
-    },
     "ecs.t5-lc1m1.small": {
-      "num": 5,
+      "num": 3,
       "price": 0.10
     },
+    "ecs.g5.large": {
+      "num": 1,
+      "price": 0.18
+    },
     "ecs.d1ne.8xlarge": {
-      "num": 3,
+      "num": 2,
       "price": 0.20
     }
   },

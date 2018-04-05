@@ -5,13 +5,12 @@ if [ $# -ne 1 ]; then
 	exit 1
 fi
 
-
 WORK_DIR="/home/spoter/k8s-base"
 DOCKER_PACKAGE="${WORK_DIR}/docker-ce-17.03.0.ce-1.el7.centos.x86_64.rpm"
 DOCKER_SE_LINUX="${WORK_DIR}/docker-ce-selinux-17.03.0.ce-1.el7.centos.noarch.rpm"
 DOCKER_JSON="${WORK_DIR}/daemon.json"
 
-DOCKER_DIR="${WORK_DIR}/docker"
+DOCKER_DIR="${WORK_DIR}"
 DOCKER_CONF="/etc/docker"
 ROOT_DIR="/root"
 
@@ -20,10 +19,10 @@ HOST_IP=$1
 function install-docker() {
 	HOST=$1
 	ssh root@$HOST "mkdir -p $DOCKER_DIR && mkdir -p $DOCKER_CONF"
-	scp $DOCKER_PACKAGE root@$HOST:$DOCKER_DIR
-	scp $DOCKER_SE_LINUX root@$HOST:$DOCKER_DIR
-	scp $DOCKER_JSON root@$HOST:$DOCKER_CONF/$DOCKER_JSON
-	ssh root@$HOST "cd $DOCKER_DIR && yum install -y $DOCKER_PACKAGE $DOCKER_SE_LINUX git wget && systemctl start docker && docker info"
+	scp $DOCKER_PACKAGE root@$HOST:$DOCKER_DIR/docker-ce-17.03.0.ce-1.el7.centos.x86_64.rpm
+	scp $DOCKER_SE_LINUX root@$HOST:$DOCKER_DIR/docker-ce-selinux-17.03.0.ce-1.el7.centos.noarch.rpm
+	scp $DOCKER_JSON root@$HOST:$DOCKER_CONF/daemon.json
+	ssh root@$HOST "cd $DOCKER_DIR && yum install -y $DOCKER_SE_LINUX $DOCKER_PACKAGE git wget && systemctl start docker && docker info"
 }
 
 TARGET="${WORK_DIR}/k8s.tar.gz"
