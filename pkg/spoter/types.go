@@ -10,3 +10,10 @@ type SpoterConfig struct {
 	Model         SpoterModel `json:"model"`
 	CheckInterval int32       `json:"checkInterval"`
 }
+
+type AllocMachineResponse struct {
+	Code       int32  `json:"code"`
+	Msg        string `json:"msg"`
+	EipAddress string `json:"EipAddress,omitempty"`
+	Hostname   string `json:"Hostname,omitempty"`
+}

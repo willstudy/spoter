@@ -18,11 +18,11 @@ HOST_IP=$1
 
 function install-docker() {
 	HOST=$1
-	ssh root@$HOST "mkdir -p $DOCKER_DIR && mkdir -p $DOCKER_CONF"
+	ssh -o StrictHostKeyChecking=no root@$HOST "mkdir -p $DOCKER_DIR && mkdir -p $DOCKER_CONF"
 	scp $DOCKER_PACKAGE root@$HOST:$DOCKER_DIR/docker-ce-17.03.0.ce-1.el7.centos.x86_64.rpm
 	scp $DOCKER_SE_LINUX root@$HOST:$DOCKER_DIR/docker-ce-selinux-17.03.0.ce-1.el7.centos.noarch.rpm
 	scp $DOCKER_JSON root@$HOST:$DOCKER_CONF/daemon.json
-	ssh root@$HOST "cd $DOCKER_DIR && yum install -y $DOCKER_SE_LINUX $DOCKER_PACKAGE git wget && systemctl start docker && docker info"
+	ssh -o StrictHostKeyChecking=no root@$HOST "cd $DOCKER_DIR && yum install -y $DOCKER_SE_LINUX $DOCKER_PACKAGE git wget && systemctl start docker && docker info"
 }
 
 TARGET="${WORK_DIR}/k8s.tar.gz"
@@ -44,16 +44,16 @@ function install-k8s-base() {
 	HOST=$1
 	scp $TARGET root@$HOST:$WORK_DIR
 	scp $CONFIG root@$HOST:$WORK_DIR
-	ssh root@$HOST $INSTALL_BASE
-	ssh root@$HOST $BASE_IMAGE_PULL
-	ssh root@$HOST $BASE_IMAGE_TAG
+	ssh -o StrictHostKeyChecking=no root@$HOST $INSTALL_BASE
+	ssh -o StrictHostKeyChecking=no root@$HOST $BASE_IMAGE_PULL
+	ssh -o StrictHostKeyChecking=no root@$HOST $BASE_IMAGE_TAG
 }
 
 MYNET_FILE="${WORK_DIR}/10-mynet.conf"
 LOOPBACK_FILE="${WORK_DIR}/99-loopback.conf"
 function install-k8s-cni() {
 	HOST=$1
-	ssh root@$HOST "mkdir -p /etc/cni/net.d"
+	ssh -o StrictHostKeyChecking=no root@$HOST "mkdir -p /etc/cni/net.d"
 	scp $MYNET_FILE root@$HOST:/etc/cni/net.d/10-mynet.conf
 	scp $LOOPBACK_FILE root@$HOST:/etc/cni/net.d/99-loopback.conf
 }

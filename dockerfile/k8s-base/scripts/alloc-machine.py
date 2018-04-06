@@ -15,15 +15,15 @@ MAX_RETRY = 3
 logger = logging.getLogger("Alloc-ECS")
 formatter = logging.Formatter('%(asctime)s %(funcName)s +%(lineno)d %(levelname)s: %(message)s')
 
-"""
-file_handler = logging.FileHandler(".log")
+
+file_handler = logging.FileHandler("alloc-machine.log")
 file_handler.setFormatter(formatter)  # 可以通过setFormatter指定输出格式
 """
-
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.formatter = formatter
+"""
 
-logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 logger.setLevel(logging.DEBUG)
 
 def createECS(accessKey, secretKey, region, imageID, instanceType, groupID, price, keyName):
@@ -42,13 +42,14 @@ def createInstance(clt, imageID, instanceType, groupID, price, keyName):
     request.set_SystemDiskCategory('cloud_efficiency')
     request.set_InstanceChargeType('PostPaid')
     request.set_SpotStrategy('SpotWithPriceLimit')
-    request.set_InternetChargeType('PayByBandwidth')
+    request.set_InternetChargeType('PayByTraffic')
     request.set_InternetMaxBandwidthOut(1)
 
     response = _send_request(request, clt)
     if response['code'] != 0:
         logger.warn("create instance failed with %s" % response['msg'])
         return response
+    logger.info("create ecs done.")
 
     instanceID = response['msg'].get('InstanceId')
 
@@ -56,7 +57,8 @@ def createInstance(clt, imageID, instanceType, groupID, price, keyName):
     if response['code'] != 0:
         logger.warn("alloc EIP failed with %s" % response['msg'])
         return response
-    logger.info("alloc EIP response: %s" % response['msg'])
+    logger.info("alloc EIP response done.")
+
     ret['EipAddress'] = response['msg']['EipAddress']
     associateID = response['msg']['AllocationId']
 
@@ -75,11 +77,17 @@ def createInstance(clt, imageID, instanceType, groupID, price, keyName):
         time.sleep(1)
     logger.debug("start instance done.")
 
-    response = associateEIP(clt, associateID, instanceID)
-    if response['code'] != 0:
-        logger.warn("associateEIP failed with %s" % response['msg'])
-        return response
-    logger.info("associateEIP response: %s" % response['msg'])
+    while True:
+        response = associateEIP(clt, associateID, instanceID)
+        if response['code'] == 0:
+            logger.info("associateEIP OK, response: %s" % response['msg'])
+            break
+        if response['msg']['Code'] != "IncorrectInstanceStatus":
+            logger.error("associateEIP failed with %s" % response['msg'])
+            return response
+        logger.warn("start instance failed with IncorrectInstanceStatus")
+        time.sleep(1)
+    logger.info("associateEIP done.")
 
     response = getInstanceDetail(clt, instanceID)
     logger.info(response)
