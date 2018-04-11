@@ -237,5 +237,18 @@ if __name__ == '__main__':
         sys.exit(output['code'])
 
     ret = createECS(accessKey, secretKey, region, imageID, instanceType, groupID, price, keyName)
-    logger.debug(ret['msg'])
+    logger.debug(ret)
+
+    result = '{'
+    if 'code' in ret:
+        result = result + '"code": ' + str(ret['code'])
+    if 'msg' in ret:
+        result = result + ', "msg": "' + str(ret['msg']) + '"'
+    if 'EipAddress' in ret:
+        result = result + ', "EipAddress": "' + str(ret['EipAddress']) + '"'
+    if 'Hostname' in ret:
+        result = result + ', "Hostname": "' + str(ret['Hostname']) + '"'
+    result = result + '}'
+    logger.debug("result: %s", result)
+    print result
     sys.exit(ret['code'])

@@ -16,6 +16,22 @@ ROOT_DIR="/root"
 
 HOST_IP=$1
 
+function wait-ecs-OK() {
+	HOST=$1
+	retry=60
+	for((i = 0; i < $retry; i++))
+	do
+		ssh -o StrictHostKeyChecking=no root@$HOST "mkdir -p /tmp"
+		ret=`echo $?`
+		if [ "$ret" == "0" ]; then
+			"echo $HOST had set up"
+			break
+		fi
+		echo "sleep 2 seconds"
+		sleep 2
+	done
+}
+
 function install-docker() {
 	HOST=$1
 	ssh -o StrictHostKeyChecking=no root@$HOST "mkdir -p $DOCKER_DIR && mkdir -p $DOCKER_CONF"
@@ -59,6 +75,7 @@ function install-k8s-cni() {
 }
 
 function install() {
+	wait-ecs-OK $HOST_IP
   install-docker $HOST_IP
   install-k8s-base $HOST_IP
   install-k8s-cni $HOST_IP

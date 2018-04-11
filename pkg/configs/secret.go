@@ -1,8 +1,8 @@
 package configs
 
 const (
-	AccessKey       = "LTAI0oCQ0dZSFkY3"
-	SecretKey       = "rsztClOSDAvoHBScGSCOWpZw19nRmT"
+	AccessKey       = "LTAIHWDHBjiP5ji7"
+	SecretKey       = "MfgzMDhfX6sLEfQPMoTlkvXf5SZ2V0"
 	Region          = "cn-beijing"
 	ImageID         = "centos_7_04_64_20G_alibase_201701015.vhd"
 	InstanceType    = "ecs.xn4.small"

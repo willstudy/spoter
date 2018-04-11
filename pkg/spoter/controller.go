@@ -162,7 +162,16 @@ func (s *spoterController) Serve(ctx context.Context, quit <-chan struct{}) erro
 		return err
 	}
 	logger.Debugf("config content: %#v", config)
-
+	/*
+		var resp AllocMachineResponse
+		str := "{\"EipAddress\":\"39.105.2.200\",\"msg\":\"CreateECSsuccessfully.\",\"Hostname\":\"iZ2zeifctth7468lg6e225Z\",\"code\":0}"
+		logger.Debugf("str: %v\n", str)
+		if err = json.Unmarshal([]byte(str), &resp); err != nil {
+			logger.Errorf("Json Unmarshal failed with %v", err)
+			//return "", "", err
+		}
+		logger.Debugf("resp: %#v\n", resp)
+	*/
 	for {
 		select {
 		case <-quit:

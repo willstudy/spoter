@@ -1,16 +1,12 @@
 {
   "model": {
-    "ecs.t5-lc1m1.small": {
-      "num": 3,
-      "price": 0.10
+    "ecs.xn4.small": {
+      "num": 1,
+      "price": 0.06
     },
-    "ecs.g5.large": {
+    "ecs.t5-lc1m1.small": {
       "num": 1,
       "price": 0.18
-    },
-    "ecs.d1ne.8xlarge": {
-      "num": 2,
-      "price": 0.20
     }
   },
   "checkInterval": 30

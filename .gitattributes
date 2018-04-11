@@ -1,0 +1,1 @@
+dockerfile/k8s-base/kubeadm filter=lfs diff=lfs merge=lfs -text
