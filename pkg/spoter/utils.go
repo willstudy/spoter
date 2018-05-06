@@ -3,6 +3,7 @@ package spoter
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,7 +13,8 @@ import (
 	"github.com/willstudy/spoter/pkg/configs"
 )
 
-func (s *spoterController) allocMachine(label string, price float64) (string, string, error) {
+func (s *spoterController) allocMachine(label string, price float64,
+	bandwidth int32) (string, string, error) {
 	logger := s.logger.WithFields(log.Fields{
 		"func": "allocMachine",
 	})
@@ -26,8 +28,10 @@ func (s *spoterController) allocMachine(label string, price float64) (string, st
 		"--imageID=" + configs.ImageID,
 		"--instanceType=" + configs.InstanceType,
 		"--groupID=" + configs.SecurityGroupID,
-		"--price=" + configs.SpotPriceLimit,
 		"--keyName=" + configs.SSHKeyName,
+		"--price=" + strconv.FormatFloat(price, 'E', -1, 64),
+		"--bandwidth=" + strconv.FormatInt(int64(bandwidth), 10),
+		"--action=" + configs.CreateAction,
 	}
 	logger.Infof("CMD: %v.", cmds)
 
@@ -196,12 +200,12 @@ func (s *spoterController) labelNode(hostName, label string) error {
 	}
 	return err
 }
-func (s *spoterController) joinNode(label string, price float64) {
+func (s *spoterController) joinNode(label string, price float64, bandwidth int32) {
 	logger := s.logger.WithFields(log.Fields{
 		"func": "rebalance",
 	})
 
-	hostIp, hostName, err := s.allocMachine(label, price)
+	hostIp, hostName, err := s.allocMachine(label, price, bandwidth)
 	if err != nil {
 		logger.Errorf("Failed to alloc Machine, due to: %v", err)
 		return

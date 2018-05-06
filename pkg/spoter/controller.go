@@ -2,6 +2,7 @@ package spoter
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/willstudy/spoter/pkg/common"
@@ -24,18 +26,42 @@ type ControllerConfig struct {
 	Logger     *log.Entry
 }
 
+type K8sMachine struct {
+	Hostname     string
+	ImageId      string
+	Region       string
+	InstanceType string
+
+	SpotWithPriceLimit float64
+	BandWidth          int32
+
+	InstanceID string
+	PublicIP   string
+	PrivateIP  string
+	Status     string
+}
+
 type spoterController struct {
 	configFile string
 	logger     *log.Entry
+	dbCon      *sql.DB
+	k8sMachine map[string]K8sMachine
 }
 
 func NewSpoterController(config *ControllerConfig) (SpoterControllerInterface, error) {
 	if err := checkControllerConfig(config); err != nil {
 		return nil, fmt.Errorf("config failed with %v", err)
 	}
+
+	db, err := sql.Open("mysql", configs.SQLDSN)
+	if err != nil {
+		return nil, fmt.Errorf("open mysql failed with %v", err)
+	}
+
 	return &spoterController{
 		configFile: config.ConfigFile,
 		logger:     config.Logger,
+		dbCon:      db,
 	}, nil
 }
 
@@ -70,6 +96,40 @@ func (s *spoterController) parseConfigs() (SpoterConfig, error) {
 	}
 
 	return m, nil
+}
+
+func (s *spoterController) initFromDB() error {
+	logger := s.logger.WithFields(log.Fields{
+		"func": "initFromDB",
+	})
+
+	sql := "select hostname, image_id, region, instance_type, spot_price_limit,"
+	sql += " bandwith, instance_id, public_ip, private_ip, status from machine_info"
+	logger.Debugf("sql: %s", sql)
+
+	rows, err := s.dbCon.Query(sql)
+	defer rows.Close()
+	if err != nil {
+		return err
+	}
+
+	s.k8sMachine = make(map[string]K8sMachine)
+
+	for rows.Next() {
+		var m K8k8sMachine
+		if err := rows.Scan(&m.Hostname, &m.ImageId, &m.Region, &m.InstanceType,
+			&m.SpotWithPriceLimit, &m.BandWidth, &m.InstanceID, &m.PublicIP,
+			&m.PrivateIP, &m.Status); err != nil {
+			logger.Fatal("failed to read from row, due to %v", err)
+			return err
+		}
+		if m.Status == configs.MachineDeleted {
+			continue
+		}
+		s.k8sMachine[m.InstanceID] = m
+		logger.Debugf("Load a machine from DB, machine info: %v", m)
+	}
+	return nil
 }
 
 func (s *spoterController) getClusterStatus() (SpoterModel, error) {
@@ -137,14 +197,14 @@ func (s *spoterController) rebalance(config, status SpoterModel) {
 		if _, ok := status[label]; !ok {
 			for i := 0; int32(i) < machineInfo.Num; i++ {
 				logger.Infof("Add a machine, label: %s, price: %v\n", label, machineInfo.Price)
-				s.joinNode(label, machineInfo.Price)
+				s.joinNode(label, machineInfo.Price, machineInfo.BandWidth)
 			}
 		} else {
 			delta := machineInfo.Num - status[label].Num
 			if delta > 0 {
 				for i := 0; int32(i) < delta; i++ {
 					logger.Infof("Add a machine, label: %s, price: %v\n", label, machineInfo.Price)
-					s.joinNode(label, machineInfo.Price)
+					s.joinNode(label, machineInfo.Price, machineInfo.BandWidth)
 				}
 			}
 		}
@@ -156,12 +216,20 @@ func (s *spoterController) Serve(ctx context.Context, quit <-chan struct{}) erro
 	logger := s.logger.WithFields(log.Fields{
 		"func": "Serve",
 	})
+
 	config, err := s.parseConfigs()
 	if err != nil {
 		logger.Errorf("Parse config failed with %v", err)
 		return err
 	}
 	logger.Debugf("config content: %#v", config)
+
+	if err = s.initFromDB(); err != nil {
+		logger.Errorf("Init from db failed with %v", err)
+	}
+	// 恢复正在删除的 machine 和 刚刚创建的 machine 的动作
+	s.restoreFromDB()
+
 	/*
 		var resp AllocMachineResponse
 		str := "{\"EipAddress\":\"39.105.2.200\",\"msg\":\"CreateECSsuccessfully.\",\"Hostname\":\"iZ2zeifctth7468lg6e225Z\",\"code\":0}"

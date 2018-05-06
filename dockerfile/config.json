@@ -2,11 +2,13 @@
   "model": {
     "ecs.xn4.small": {
       "num": 1,
-      "price": 0.06
+      "price": 0.06,
+      "bandwidth": 1,
     },
     "ecs.t5-lc1m1.small": {
       "num": 1,
-      "price": 0.18
+      "price": 0.18,
+      "bandwidth": 1,
     }
   },
   "checkInterval": 30
