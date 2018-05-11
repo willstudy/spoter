@@ -108,8 +108,10 @@ func (s *spoterController) initFromDB() error {
 	logger.Debugf("sql: %s", sql)
 
 	rows, err := s.dbCon.Query(sql)
-	defer rows.Close()
-	if err != nil {
+	if err == nil {
+		defer rows.Close()
+	} else {
+		logger.Debugf("Query result: %s", err)
 		return err
 	}
 
