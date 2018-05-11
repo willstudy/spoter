@@ -3,9 +3,3 @@ version: "3"
 services:
     spoter:
         image: spoter-controller
-    mysql:
-        image: mysql
-        environment:
-          - MYSQL_ROOT_PASSWORD=zombie
-        ports: 
-          - "3306:3306"
