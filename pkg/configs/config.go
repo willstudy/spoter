@@ -21,7 +21,7 @@ const (
 	CreateAction = "create"
 	DeleteAction = "delete"
 
-	SQLDSN = "root:banana@/tcp(127.0.0.1:3306)/aliyun" // "user:password@/dbname"
+	SQLDSN = "root:banana@tcp(127.0.0.1:3306)/aliyun" // "user:password@/dbname"
 )
 
 const (
