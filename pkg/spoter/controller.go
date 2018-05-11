@@ -116,7 +116,7 @@ func (s *spoterController) initFromDB() error {
 	s.k8sMachine = make(map[string]K8sMachine)
 
 	for rows.Next() {
-		var m K8k8sMachine
+		var m K8sMachine
 		if err := rows.Scan(&m.Hostname, &m.ImageId, &m.Region, &m.InstanceType,
 			&m.SpotWithPriceLimit, &m.BandWidth, &m.InstanceID, &m.PublicIP,
 			&m.PrivateIP, &m.Status); err != nil {
