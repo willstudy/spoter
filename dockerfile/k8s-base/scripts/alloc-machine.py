@@ -408,7 +408,7 @@ if __name__ == '__main__':
     if ret['code'] != 0:
         sys.exit(ret['code'])
 
-    result = '{'
+    result = '{' + '"groupId": ' + str(groupID)
     if 'code' in ret:
         result = result + '"code": ' + str(ret['code'])
     if 'msg' in ret:
