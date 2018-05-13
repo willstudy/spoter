@@ -399,7 +399,7 @@ if __name__ == '__main__':
     ep.set_Bandwidth(bandwidth)
     ep.set_Action(action)
     ep.set_InstanceID(instanceID)
-    ep.set_EIP_ID(eipID)
+    ep.set_EIP(eipID)
     ep.set_AssoID(assoID)
 
     ret = ep.do_action()

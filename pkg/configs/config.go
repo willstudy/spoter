@@ -25,8 +25,10 @@ const (
 )
 
 const (
-	MachineCreated = "created"
-	MachineWorking = "working"
-	MachineDestory = "Destory"
-	MachineDeleted = "Deleted"
+	MachineCreated   = "machine-created"
+	MachineInstalled = "k8s-installed"
+	MachineJoined    = "machine-joined"
+	MachineRunning   = "machine-running" //
+	MachineDestory   = "machine-destory"
+	MachineDeleted   = "machine-deleted"
 )
