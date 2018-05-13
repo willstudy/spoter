@@ -8,5 +8,5 @@ const (
 	InstanceType    = "ecs.xn4.small"
 	SecurityGroupID = "sg-j6cbhv38slef52pmafgn"
 	SpotPriceLimit  = "0.08"
-	SSHKeyName      = "k8s"
+	SSHKeyName      = "hk-spoter-test"
 )
