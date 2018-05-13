@@ -46,6 +46,7 @@ class ECS_Operator:
         self.instanceID = ""
         self.eip = ""
         self.assoID = ""
+        self.vSwitchID= ""
 
     def set_AccessKey(self, accessKey):
         self.accessKey = accessKey
@@ -88,6 +89,9 @@ class ECS_Operator:
 
     def set_AssoID(self, assoID):
         self.assoID = assoID
+    
+    def set_VSwitchID(self, VSwitchID):
+        self.VSwitchID = VSwitchID
 
     def createECS_Client(self):
         return client.AcsClient(self.accessKey, self.secretKey, self.region)
@@ -148,6 +152,7 @@ class ECS_Operator:
         request.set_InstanceChargeType('PostPaid')
         request.set_SpotStrategy('SpotWithPriceLimit')
         request.set_InternetChargeType('PayByTraffic')
+        request.set_VSwitchId(self.vSwitchID)
 
         """步骤
         1. 创建 ECS
@@ -308,11 +313,12 @@ if __name__ == '__main__':
     instanceID = ""
     eipID = ""
     assoID = ""
+    vSwitchID = ""
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "x:a:s:r:i:t:g:p:k:h:b", ["accessKey=",
         "secretKey=", "region=", "imageID=", "instanceType=", "groupID=", "price=",
-        "keyName=", "bandwidth=", "action=", "instanceID=", "eipID=", "assoID=" "help"])
+        "keyName=", "bandwidth=", "action=", "instanceID=", "eipID=", "assoID=", "vSwitchID=", "help"])
 
         for opt, arg in opts:
             if opt in ("-a", "--accessKey"):
@@ -341,6 +347,8 @@ if __name__ == '__main__':
                 eipID = arg
             elif opt in ("xxx", "--assoID"):
                 assoID = arg
+            elif opt in ("xxx", "--vSwitchID"):
+                vSwitchID = arg
             elif opt in ("-h", "--help"):
                 usage()
                 sys.exit(0)
@@ -401,6 +409,7 @@ if __name__ == '__main__':
     ep.set_InstanceID(instanceID)
     ep.set_EIP(eipID)
     ep.set_AssoID(assoID)
+    ep.set_VSwitchID(vSwitchID)
 
     ret = ep.do_action()
     logger.debug(ret)
@@ -408,7 +417,7 @@ if __name__ == '__main__':
     if ret['code'] != 0:
         sys.exit(ret['code'])
 
-    result = '{' + '"groupId": ' + str(groupID)
+    result = '{'
     if 'code' in ret:
         result = result + '"code": ' + str(ret['code'])
     if 'msg' in ret:
