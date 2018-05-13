@@ -152,7 +152,7 @@ class ECS_Operator:
         request.set_InstanceChargeType('PostPaid')
         request.set_SpotStrategy('SpotWithPriceLimit')
         request.set_InternetChargeType('PayByTraffic')
-        request.set_VSwitchId(self.vSwitchID)
+        request.add_query_param('VSwitchId', 'vsw-j6c9wm50kmw5kofmix5eq')
 
         """步骤
         1. 创建 ECS
