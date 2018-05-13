@@ -54,7 +54,7 @@ func (s *spoterController) allocMachine(label string, price float64,
 		return "", "", err
 	}
 
-	return resp.EipAddress, resp.Hostname, nil
+	return resp.InnerAddress, resp.Hostname, nil
 }
 
 func (s *spoterController) installK8sBase(hostIp string) error {
