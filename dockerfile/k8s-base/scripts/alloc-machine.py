@@ -21,14 +21,15 @@ DELETE_ACTION = "delete"
 logger = logging.getLogger("Alloc-ECS")
 formatter = logging.Formatter('%(asctime)s %(funcName)s +%(lineno)d %(levelname)s: %(message)s')
 
-"""
+
 file_handler = logging.FileHandler("alloc-machine.log")
 file_handler.setFormatter(formatter)  # 可以通过setFormatter指定输出格式
 """
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.formatter = formatter
+"""
 
-logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 logger.setLevel(logging.DEBUG)
 
 class ECS_Operator:
@@ -163,9 +164,9 @@ class ECS_Operator:
 
         response = self._send_request(clt, request)
         if response['code'] != 0:
-            # logger.warn("create instance failed with %s" % response['msg'])
+            logger.warn("create instance failed with %s" % response['msg'])
             return response
-        # logger.info("create ecs done.")
+        logger.info("create ecs done.")
 
         instanceID = response['msg'].get('InstanceId')
         associateID = ""
@@ -188,17 +189,17 @@ class ECS_Operator:
         while True:
             response = self.startInstance(clt, instanceID)
             if response['code'] == 0:
-                # logger.debug("start instance OK, return %s" % response['msg'])
+                logger.debug("start instance OK, return %s" % response['msg'])
                 break
-            # logger.debug("response code: %s", str(response['code']))
+            logger.debug("response code: %s", str(response['code']))
             if response['code'] != 'IncorrectInstanceStatus':
-                # logger.error("start instance failed with %s" % response['msg'])
+                logger.error("start instance failed with %s" % response['msg'])
                 ret['code'] = 1
                 ret['msg'] = "start instance failed with" + str(response['msg'])
                 return ret
-            # logger.warn("start instance failed with IncorrectInstanceStatus")
+            logger.warn("start instance failed with IncorrectInstanceStatus")
             time.sleep(1)
-        # logger.debug("start instance done.")
+        logger.debug("start instance done.")
 
         """关联公网 IP 到 ECS 上
         while True:
@@ -215,13 +216,13 @@ class ECS_Operator:
         """
 
         response = self.getInstanceDetail(clt, instanceID)
-        # logger.info(response)
-        ret['EipAddress'] = ""
+        logger.info(response)
+        ret['EipAddress'] = response['msg'].get('Instances').get('Instance')[0].get('EipAddress').get('IpAddress')
         ret['Hostname'] = response['msg'].get('Instances').get('Instance')[0].get('HostName')
-        ret['InnerAddress'] = response['msg'].get('Instances').get('Instance')[0].get('HostName')
+        ret['InnerAddress'] = response['msg'].get('Instances').get('Instance')[0].get('VpcAttributes').get('PrivateIpAddress').get('IpAddress')[0]
         ret['msg'] = "Create ECS successfully."
         ret['code'] = 0
-        # logger.info(ret)
+        logger.info(ret)
         return ret
 
     def allocEIP(self, clt):
@@ -249,7 +250,7 @@ class ECS_Operator:
         try:
             response_str = clt.do_action(request)
             response_detail = json.loads(response_str)
-            # logger.debug("response: %s" % response_detail)
+            logger.debug("response: %s" % response_detail)
             if 'Code' in response_detail:
                 ret['code'] = response_detail['Code']
             else:
@@ -267,7 +268,7 @@ class ECS_Operator:
         request.set_accept_format('json')
         try:
             response_str = json.loads(clt.do_action(request))
-            # logger.debug("response: %s" % response_str)
+            logger.debug("response: %s" % response_str)
             if 'Code' in response_str:
                 ret['code'] = response_str['Code']
             else:
@@ -412,7 +413,7 @@ if __name__ == '__main__':
     ep.set_VSwitchID(vSwitchID)
 
     ret = ep.do_action()
-    # logger.debug(ret)
+    logger.debug(ret)
 
     if ret['code'] != 0:
         sys.exit(ret['code'])
@@ -430,5 +431,5 @@ if __name__ == '__main__':
         result = result + ', "Hostname": "' + str(ret['Hostname']) + '"'
     result = result + '}'
 
-    # logger.debug("result: %s", result)
+    logger.debug("result: %s", result)
     print result
