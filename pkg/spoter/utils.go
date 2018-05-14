@@ -25,6 +25,28 @@ func abs(n int32) int32 {
 	}
 }
 
+func (s *spoterController) updateMachineStatus(instanceID, status string) error {
+	logger := s.logger.WithFields(log.Fields{
+		"func": "updateMachineStatus",
+	})
+
+	sql := "UPDATE machine_info set status = ? where instance_id = ?"
+	logger.Debugf("sql : %s\n", sql)
+
+	stmtIns, err := s.dbCon.Prepare(sql)
+	if err != nil {
+		logger.Fatal("Failed to prepare sql with: %v\n", err)
+		return err
+	}
+	defer stmtIns.Close()
+
+	if _, err := stmtIns.Exec(instanceID, status); err != nil {
+		logger.Fatal("Failed to update machine info with: %v\n", err)
+		return err
+	}
+	return nil
+}
+
 func (s *spoterController) allocMachine(label string, price float64,
 	bandwidth int32) (string, string, error) {
 	logger := s.logger.WithFields(log.Fields{
@@ -94,8 +116,7 @@ func (s *spoterController) allocMachine(label string, price float64,
 		sql += resp.InnerAddress + "', '" + configs.MachineCreated + "'"
 	*/
 
-	logger.Debug("Insert into mysql OK.\n")
-
+	logger.Debug("update machine status [machine-created] OK.\n")
 	return resp.EipAddress, resp.Hostname, nil
 }
 
@@ -119,23 +140,12 @@ func (s *spoterController) installK8sBase(hostIp, instanceID string) error {
 		return err
 	}
 
-	sql := "UPDATE machine_info set status = ? where instance_id = ?"
-	logger.Debugf("sql : %s\n", sql)
-
-	stmtIns, err := s.dbCon.Prepare(sql)
-	if err != nil {
-		logger.Fatal("Failed to prepare sql with: %v\n", err)
-		return err
-	}
-	defer stmtIns.Close()
-
-	if _, err := stmtIns.Exec(configs.MachineInstalled, instanceID); err != nil {
-		logger.Fatal("Failed to update machine info with: %v\n", err)
+	if err = s.updateMachineStatus(instanceID, configs.MachineInstalled); err != nil {
+		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
 
-	logger.Debug("update machine info OK.\n")
-
+	logger.Debug("update machine status [machine-installed] OK.\n")
 	return nil
 }
 
@@ -209,23 +219,11 @@ func (s *spoterController) joinIntoK8s(hostIp, kubeToken, instanceID string) err
 		return err
 	}
 
-	sql := "UPDATE machine_info set status = ? where instance_id = ?"
-	logger.Debugf("sql : %s\n", sql)
-
-	stmtIns, err := s.dbCon.Prepare(sql)
-	if err != nil {
-		logger.Fatal("Failed to prepare sql with: %v\n", err)
+	if err = s.updateMachineStatus(instanceID, configs.MachineJoined); err != nil {
+		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
-	defer stmtIns.Close()
-
-	if _, err := stmtIns.Exec(configs.MachineJoined, instanceID); err != nil {
-		logger.Fatal("Failed to update machine info with: %v\n", err)
-		return err
-	}
-
-	logger.Debug("update machine info OK.\n")
-
+	logger.Debug("update machine status [machine-joined] OK.\n")
 	return nil
 }
 
@@ -291,23 +289,11 @@ func (s *spoterController) labelNode(hostName, label string) error {
 		return err
 	}
 
-	sql := "UPDATE machine_info set status = ? where instance_id = ?"
-	logger.Debugf("sql : %s\n", sql)
-
-	stmtIns, err := s.dbCon.Prepare(sql)
-	if err != nil {
-		logger.Fatal("Failed to prepare sql with: %v\n", err)
+	if err = s.updateMachineStatus(hostName, configs.MachineRunning); err != nil {
+		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
-	defer stmtIns.Close()
-
-	if _, err := stmtIns.Exec(configs.MachineRunning, hostName); err != nil {
-		logger.Fatal("Failed to update machine info with: %v\n", err)
-		return err
-	}
-
-	logger.Debug("update machine info OK.\n")
-
+	logger.Debug("update machine status [machine-running] OK.\n")
 	return nil
 }
 func (s *spoterController) joinNode(label string, price float64, bandwidth int32) {
@@ -381,22 +367,11 @@ func (s *spoterController) removeNodeFromK8s(instanceID string) error {
 		return err
 	}
 
-	sql := "UPDATE machine_info set status = ? where instance_id = ?"
-	logger.Debugf("sql : %s\n", sql)
-
-	stmtIns, err := s.dbCon.Prepare(sql)
-	if err != nil {
-		logger.Fatal("Failed to prepare sql with: %v\n", err)
+	if err = s.updateMachineStatus(instanceID, configs.MachineRemoved); err != nil {
+		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
-	defer stmtIns.Close()
-
-	if _, err := stmtIns.Exec(configs.MachineDestory, instanceID); err != nil {
-		logger.Fatal("Failed to update machine info with: %v\n", err)
-		return err
-	}
-
-	logger.Debug("update machine info OK.\n")
+	logger.Debug("update machine status [machine-removed] OK.\n")
 	return nil
 }
 
@@ -424,22 +399,11 @@ func (s *spoterController) deleteECS(instanceID string) error {
 	}
 	logger.Debugf("Delete ecs OK: %s\n", output)
 
-	sql := "UPDATE machine_info set status = ? where instance_id = ?"
-	logger.Debugf("sql : %s\n", sql)
-
-	stmtIns, err := s.dbCon.Prepare(sql)
-	if err != nil {
-		logger.Fatal("Failed to prepare sql with: %v\n", err)
+	if err = s.updateMachineStatus(instanceID, configs.MachineDeleted); err != nil {
+		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
-	defer stmtIns.Close()
-
-	if _, err := stmtIns.Exec(configs.MachineDeleted, instanceID); err != nil {
-		logger.Fatal("Failed to update machine info with: %v\n", err)
-		return err
-	}
-
-	logger.Debug("update machine info OK.\n")
+	logger.Debug("update machine status [machine-deleted] OK.\n")
 	return nil
 }
 

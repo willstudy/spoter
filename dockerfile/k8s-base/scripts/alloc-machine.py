@@ -21,14 +21,15 @@ DELETE_ACTION = "delete"
 logger = logging.getLogger("Alloc-ECS")
 formatter = logging.Formatter('%(asctime)s %(funcName)s +%(lineno)d %(levelname)s: %(message)s')
 
-"""
+
 file_handler = logging.FileHandler("alloc-machine.log")
 file_handler.setFormatter(formatter)  # 可以通过setFormatter指定输出格式
 """
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.formatter = formatter
+"""
 
-logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 logger.setLevel(logging.DEBUG)
 
 class ECS_Operator:
@@ -211,9 +212,9 @@ class ECS_Operator:
 
         response = self.getInstanceDetail(clt, instanceID)
         logger.info(response)
-        ret['EipAddress'] = ""
+        ret['EipAddress'] = response['msg'].get('Instances').get('Instance')[0].get('EipAddress').get('IpAddress')
         ret['Hostname'] = response['msg'].get('Instances').get('Instance')[0].get('HostName')
-        ret['InnerAddress'] = response['msg'].get('Instances').get('Instance')[0].get('HostName')
+        ret['InnerAddress'] = response['msg'].get('Instances').get('Instance')[0].get('VpcAttributes').get('PrivateIpAddress').get('IpAddress')[0]
         ret['msg'] = "Create ECS successfully."
         ret['code'] = 0
         logger.info(ret)
