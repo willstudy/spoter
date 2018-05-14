@@ -199,6 +199,9 @@ func (s *spoterController) Serve(ctx context.Context, quit <-chan struct{}) erro
 	// 恢复正在删除的 machine 和 其他中断的 machine 的动作
 	s.restoreFromDB()
 
+	// 后台不停的检测 spot instance 是否过期
+	go s.detectController(ctx, quit)
+
 	/*
 		var resp AllocMachineResponse
 		str := "{\"EipAddress\":\"39.105.2.200\",\"msg\":\"CreateECSsuccessfully.\",\"Hostname\":\"iZ2zeifctth7468lg6e225Z\",\"code\":0}"
@@ -212,6 +215,7 @@ func (s *spoterController) Serve(ctx context.Context, quit <-chan struct{}) erro
 	for {
 		select {
 		case <-quit:
+			// 优雅退出
 			logger.Debug("Receive TERM, exit.")
 			break
 		default:

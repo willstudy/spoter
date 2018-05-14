@@ -21,7 +21,8 @@ const (
 	CreateAction = "create"
 	DeleteAction = "delete"
 
-	SQLDSN = "root:yellow@/aliyun" // "user:password@/dbname"
+	SQLDSN       = "root:yellow@/aliyun" // "user:password@/dbname"
+	DetectAction = "curl http://100.100.100.200/latest/meta-data/instance/spot/termination-time"
 )
 
 const (
