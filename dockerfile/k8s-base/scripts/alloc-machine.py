@@ -296,6 +296,7 @@ def usage():
     --instanceID: ECS 的 ID 信息
     --eipID: eip 的 ID 信息
     --assoID: ECS 关联 IP 的信息
+    --vSwitchID: ECS的交换机ID信息
     """)
 
 if __name__ == '__main__':
