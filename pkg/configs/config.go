@@ -22,8 +22,10 @@ const (
 	DeleteAction = "delete"
 	StatusAction = "status"
 
-	SQLDSN       = "root:yellow@/aliyun" // "user:password@/dbname"
+	SQLDSN = "root:yellow@/aliyun" // "user:password@/dbname"
 	//DetectAction = "curl http://100.100.100.200/latest/meta-data/instance/spot/termination-time"
+
+	ExpireDuration int64 = 300
 )
 
 const (
@@ -35,12 +37,4 @@ const (
 	MachineExpired = "machine-expired"
 	MachineRemoved = "machine-removed"
 	MachineDeleted = "machine-deleted"
-)
-
-const (
-    RESTORE_ACTION_FROM_MACHINE_CREATED = iota //0
-    RESTORE_ACTION_FROM_MACHINE_INSTALLED //1
-    RESTORE_ACTION_FROM_MACHINE_JOINED //2
-    RESTORE_ACTION_FROM_MACHINE_EXPIRED //3
-    RESTORE_ACTION_FROM_MACHINE_REMOVED //4
 )

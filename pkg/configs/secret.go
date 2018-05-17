@@ -1,8 +1,8 @@
 package configs
 
 const (
-	AccessKey       = "LTAIQaC85dlJS92Z"
-	SecretKey       = "i4cLZzwKRcP3FcH214nSDEHQRL0WpM"
+	AccessKey       = "aliyun-accesskey"
+	SecretKey       = "aliyun-secretkey"
 	Region          = "cn-shenzhen"
 	ImageID         = "centos_7_04_64_20G_alibase_201701015.vhd"
 	InstanceType    = "ecs.r5.large"

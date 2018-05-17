@@ -51,7 +51,7 @@ class ECS_Operator:
         self.instanceID = ""
         self.eip = ""
         self.assoID = ""
-        self.vSwitchID = ""
+        self.vSwitchID= ""
 
     def set_AccessKey(self, accessKey):
         self.accessKey = accessKey
@@ -94,6 +94,9 @@ class ECS_Operator:
 
     def set_AssoID(self, assoID):
         self.assoID = assoID
+    
+    def set_VSwitchID(self, vSwitchID):
+        self.vSwitchID = vSwitchID
 
     def set_VSwitchID(self, vSwitchID):
         self.vSwitchID = vSwitchID
@@ -361,6 +364,7 @@ def usage():
     --instanceID: ECS 的 ID 信息
     --eipID: eip 的 ID 信息
     --assoID: ECS 关联 IP 的信息
+    --vSwitchID: ECS的交换机ID信息
     """)
 
 if __name__ == '__main__':
@@ -415,6 +419,8 @@ if __name__ == '__main__':
                 eipID = arg
             elif opt in ("xxx", "--assoID"):
                 assoID = arg
+            elif opt in ("xxx", "--vSwitchID"):
+                vSwitchID = arg
             elif opt in ("-h", "--help"):
                 usage()
                 sys.exit(0)

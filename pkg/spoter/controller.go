@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -44,6 +45,7 @@ type spoterController struct {
 	logger     *log.Entry
 	dbCon      *sql.DB
 	k8sMachine map[string]K8sMachine
+	lock       *sync.Mutex
 }
 
 func NewSpoterController(config *ControllerConfig) (SpoterControllerInterface, error) {
@@ -60,6 +62,7 @@ func NewSpoterController(config *ControllerConfig) (SpoterControllerInterface, e
 		configFile: config.ConfigFile,
 		logger:     config.Logger,
 		dbCon:      db,
+		lock:       new(sync.Mutex),
 	}, nil
 }
 
@@ -96,9 +99,9 @@ func (s *spoterController) parseConfigs() (SpoterConfig, error) {
 	return m, nil
 }
 
-func (s *spoterController) initFromDB() error {
+func (s *spoterController) loadMachineInfo() error {
 	logger := s.logger.WithFields(log.Fields{
-		"func": "initFromDB",
+		"func": "loadMachineInfo",
 	})
 
 	sql := "select hostname, image_id, region, instance_type, spot_price_limit,"
@@ -113,6 +116,9 @@ func (s *spoterController) initFromDB() error {
 
 	s.k8sMachine = make(map[string]K8sMachine)
 
+	// 对 k8sMachine 加锁
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	for rows.Next() {
 		var m K8sMachine
 		if err := rows.Scan(&m.Hostname, &m.ImageId, &m.Region, &m.InstanceType,
@@ -125,6 +131,12 @@ func (s *spoterController) initFromDB() error {
 			logger.Debugf("Machine: %s has deleted, skipped.\n", m.Hostname)
 			continue
 		}
+
+		// 如果存在的话，则删除该记录
+		if _, ok := s.k8sMachine[m.InstanceID]; ok {
+			delete(s.k8sMachine, m.InstanceID)
+		}
+
 		s.k8sMachine[m.InstanceID] = m
 		logger.Debugf("Load a machine from DB, machine info: %v", m)
 	}
@@ -132,6 +144,9 @@ func (s *spoterController) initFromDB() error {
 }
 
 func (s *spoterController) getInstanceID(instanceType string) string {
+	// 对 k8sMachine 加锁
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	for i, m := range s.k8sMachine {
 		if m.InstanceType == instanceType {
 			return i
@@ -191,7 +206,7 @@ func (s *spoterController) Serve(ctx context.Context, quit <-chan struct{}) erro
 	}
 	logger.Debugf("config content: %#v", config)
 
-	if err = s.initFromDB(); err != nil {
+	if err = s.loadMachineInfo(); err != nil {
 		logger.Errorf("Init from db failed with %v", err)
 	}
 	logger.Debugf("Machine status: %v", s.k8sMachine)

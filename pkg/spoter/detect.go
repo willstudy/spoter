@@ -12,10 +12,6 @@ import (
 	"github.com/willstudy/spoter/pkg/configs"
 )
 
-func checkExpired(expiredTime string) bool {
-	return false
-}
-
 func (s *spoterController) detectController(ctx context.Context, quit <-chan struct{}) {
 	logger := s.logger.WithFields(log.Fields{
 		"func": "detectSpotInstance",
@@ -28,14 +24,13 @@ func (s *spoterController) detectController(ctx context.Context, quit <-chan str
 			logger.Debug("Receive TERM, exit.")
 			break
 		default:
-			/*
-						for i, m := range s.k8sMachine {
-			                if m.Status == configs.MachineRunning {
-			                    logger.Debugf("instance id: %s is running, begin to detect this instance.\n", i)
-			                    s.detectInstance(ctx, m.PrivateIP, i)
-			                }
-			            }
-			*/
+			// 遍历每一个 running 的 machine
+			for i, m := range s.k8sMachine {
+				if m.Status == configs.MachineRunning {
+					logger.Debugf("instance id: %s is running, begin to detect this instance.\n", i)
+					s.detectInstance(ctx, m.PrivateIP, i)
+				}
+			}
 			logger.Debugf("Detect Done.")
 		}
 		time.Sleep(30 * time.Second)
@@ -76,8 +71,14 @@ func (s *spoterController) detectInstance(ctx context.Context, ip, instanceID st
 		return
 	}
 
-	logger.Debugf("instance: %s expired time: %s\n", instanceID, resp.ExpiredTime)
-	if checkExpired(resp.ExpiredTime) == false {
+	logger.Debugf("instance: %s expired time: %s, lock reason\n", instanceID,
+		resp.ExpiredTime, resp.LockReason)
+
+	if ok, _ := rfc3339Expired(resp.ExpiredTime); ok == true {
+		return
+	}
+
+	if resp.LockReason == "Recycling" {
 		return
 	}
 
