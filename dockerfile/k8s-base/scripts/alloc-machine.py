@@ -94,7 +94,7 @@ class ECS_Operator:
 
     def set_AssoID(self, assoID):
         self.assoID = assoID
-    
+
     def set_VSwitchID(self, vSwitchID):
         self.vSwitchID = vSwitchID
 
@@ -122,18 +122,31 @@ class ECS_Operator:
         logger.info(response)
 
         ret = {}
+        instances_info = response['msg'].get('Instances').get('Instance')
+        if len(instances_info) < 1:
+            ret['LockReason'] = ''
+            ret['InstanceID'] = instanceID
+            ret['ExpiredTime'] = ''
+            ret['EipAddress'] = ''
+            ret['Hostname'] = ''
+            ret['InnerAddress'] = ''
+            ret['msg'] = 'not found this instance'
+            ret['code'] = 0
+            return ret
 
         ret['LockReason'] = ''
-        lock_reason = response['msg'].get('Instances').get('Instance')[0].get('OperationLocks').get('LockReason')
+        lock_reason = instances_info[0].get('OperationLocks').get('LockReason')
         if lock_reason is not None:
-            for reason == "Recycling":
-                ret['LockReason'] = 'Recycling'
+            for reason in lock_reason:
+                if reason == "Recycling":
+                    ret['LockReason'] = 'Recycling'
+                    break
 
         ret['InstanceID'] = instanceID
-        ret['ExpiredTime'] = response['msg'].get('Instances').get('Instance')[0].get('ExpiredTime')
-        ret['EipAddress'] = response['msg'].get('Instances').get('Instance')[0].get('EipAddress').get('IpAddress')
-        ret['Hostname'] = response['msg'].get('Instances').get('Instance')[0].get('HostName')
-        ret['InnerAddress'] = response['msg'].get('Instances').get('Instance')[0].get('VpcAttributes').get('PrivateIpAddress').get('IpAddress')[0]
+        ret['ExpiredTime'] = instances_info[0].get('ExpiredTime')
+        ret['EipAddress'] = instances_info[0].get('EipAddress').get('IpAddress')
+        ret['Hostname'] = instances_info[0].get('HostName')
+        ret['InnerAddress'] = instances_info[0].get('VpcAttributes').get('PrivateIpAddress').get('IpAddress')[0]
         ret['msg'] = "Create ECS successfully."
         ret['code'] = 0
         return response
@@ -154,19 +167,34 @@ class ECS_Operator:
         logger.debug("stop instance: " + self.instanceID)
         for retry in range(0, MAX_RETRY):
             resp = self._send_request(clt, request)
-            if resp['code'] != 0:
+            if resp['code'] != 0 and resp['msg']['Code'] != 'IncorrectInstanceStatus':
                 logger.warn("stop instance failed, due to: " + str(resp))
                 continue
             else:
                 break
         logger.debug("resp: " + str(resp))
-        if resp['code'] != 0:
+        if resp['code'] != 0 and resp['msg']['Code'] != 'IncorrectInstanceStatus':
             return resp
-
-        time.Sleep(MAX_WAIT_S)
 
         request = DeleteInstanceRequest()
         request.set_InstanceId(self.instanceID)
+        logger.debug("delete instance: " + self.instanceID)
+
+        while True:
+            resp = self._send_request(clt, request)
+            if resp['code'] == 0:
+                logger.debug("delete instance OK, return %s" % resp['msg'])
+                break
+
+            logger.debug("response code: %s", str(response['code']))
+            if resp['code'] != 'IncorrectInstanceStatus':
+                logger.error("delete instance failed with %s" % resp['msg'])
+                ret['code'] = 1
+                ret['msg'] = "delete instance failed with" + str(resp['msg'])
+                return ret
+            logger.warn("delete instance failed with IncorrectInstanceStatus")
+            time.sleep(1)
+        logger.debug("delete instance done.")
 
         """删除 EIP
         request = UnassociateEipAddressRequest()
@@ -174,10 +202,6 @@ class ECS_Operator:
         request.set_AllocationId(self.assoID)
         """
 
-        logger.debug("delete instance: " + self.instanceID)
-        resp = self._send_request(clt, request)
-        if resp['code'] != 0:
-            return resp
 
         ret = {}
         ret['code'] = 0
@@ -279,8 +303,10 @@ class ECS_Operator:
         ret['LockReason'] = ''
         lock_reason = response['msg'].get('Instances').get('Instance')[0].get('OperationLocks').get('LockReason')
         if lock_reason is not None:
-            for reason == "Recycling":
-                ret['LockReason'] = 'Recycling'
+            for reason in lock_reason:
+                if reason == "Recycling":
+                    ret['LockReason'] = 'Recycling'
+                    break
 
         ret['InstanceID'] = instanceID
         ret['ExpiredTime'] = response['msg'].get('Instances').get('Instance')[0].get('ExpiredTime')

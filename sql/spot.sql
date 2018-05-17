@@ -16,3 +16,5 @@ insert into machine_info(hostname, region, image_id, instance_type,
     spot_price_limit, bandwith, instance_id, public_ip, private_ip,
     status) values('aly2-hn1-test-k8s-001', 'cn-beijing', 'centos_7_04_64_20G_alibase_201701015.vhd',
     'ecs.xn4.small', 0.8, 1, 'aly2-hn1-test-k8s-001', '', '172.18.49.126', 'machine-running');
+
+alter table machine_info add create_time varchar(128);

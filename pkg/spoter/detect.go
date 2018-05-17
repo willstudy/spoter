@@ -74,19 +74,27 @@ func (s *spoterController) detectInstance(ctx context.Context, ip, instanceID st
 	logger.Debugf("instance: %s expired time: %s, lock reason\n", instanceID,
 		resp.ExpiredTime, resp.LockReason)
 
+	isExpired := false
+
 	if ok, _ := rfc3339Expired(resp.ExpiredTime); ok == true {
-		return
+		isExpired = true
 	}
 
 	if resp.LockReason == "Recycling" {
+		isExpired = true
+	}
+
+	if isExpired == false {
+		logger.Debugf("instance: %s is still running, skipped.\n", instanceID)
 		return
 	}
 
+	logger.Warnf("instance: %s has been expired, begin to update machine status.\n", instanceID)
 	if err := s.updateMachineStatus(instanceID, configs.MachineExpired); err != nil {
 		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return
 	}
 
-	logger.Debug("update machine status [machine-running] OK.\n")
+	logger.Debug("update machine status [machine-expired] OK.\n")
 	return
 }

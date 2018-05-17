@@ -1,7 +1,6 @@
 package spoter
 
 import (
-	"errors"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -100,9 +99,9 @@ func restoreBeginWithDeleteECS(s *spoterController) Step {
 	}
 }
 
-func (s *spoterController) restoreFromDB() error {
+func (s *spoterController) restoreAction(quit <-chan struct{}) {
 	logger := s.logger.WithFields(log.Fields{
-		"func": "restoreFromDB",
+		"func": "restoreAction",
 	})
 
 	restoreWithStatus := map[string]Step{
@@ -115,41 +114,51 @@ func (s *spoterController) restoreFromDB() error {
 		configs.MachineDeleted:   nil,
 	}
 
-	logger.Info("Begin to restore from db.")
-	for instanceId, machineInfo := range s.k8sMachine {
+	for {
+		select {
+		case <-quit:
+			// 优雅退出
+			logger.Debug("Receive TERM, restore action exit.")
+			break
+		default:
+			// 遍历每一个 running 的 machine
+			logger.Info("Begin to restore from db.")
+			for instanceId, machineInfo := range s.k8sMachine {
 
-		if machineInfo.Status == configs.MachineRunning {
-			logger.Debugf("Instance: %s has running, skipped.", instanceId)
-			continue
-		}
+				if machineInfo.Status == configs.MachineRunning {
+					logger.Debugf("Instance: %s has running, skipped.", instanceId)
+					continue
+				}
 
-		if machineInfo.Status == configs.MachineDeleted {
-			logger.Debugf("Instance: %s has deleted, skipped.", instanceId)
-			continue
-		}
+				if machineInfo.Status == configs.MachineDeleted {
+					logger.Debugf("Instance: %s has deleted, skipped.", instanceId)
+					continue
+				}
 
-		var (
-			next Step
-			ok   bool
-			err  error
-		)
+				var (
+					next Step
+					ok   bool
+					err  error
+				)
 
-		next, ok = restoreWithStatus[machineInfo.Status]
-		if !ok {
-			logger.Error("Instance: %s has invaild status %s.", instanceId, machineInfo.Status)
-			return errors.New("invaild machine status")
-		}
+				next, ok = restoreWithStatus[machineInfo.Status]
+				if !ok {
+					logger.Errorf("Instance: %s has invaild status %s.", instanceId, machineInfo.Status)
+					break
+				}
 
-		for next != nil {
-			next, err = next(&machineInfo)
-			if err != nil {
-				logger.Error("Instance: %s has restore failed due to %v.", instanceId, err)
-				return err
+				for next != nil {
+					next, err = next(&machineInfo)
+					if err != nil {
+						logger.Warnf("Instance: %s has restore failed due to %v.", instanceId, err)
+						break
+					}
+				}
 			}
+			logger.Debug("Restore Done.")
 		}
 		time.Sleep(30 * time.Second)
-		// reload from DB
-		s.loadMachineInfo()
 	}
-	return nil
+
+	return
 }

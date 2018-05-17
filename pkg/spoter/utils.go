@@ -25,6 +25,15 @@ func abs(n int32) int32 {
 	}
 }
 
+func (s *spoterController) setK8sMachine(instanceID, status string) {
+	s.lock.Lock()
+	m := s.k8sMachine[instanceID]
+	m.Status = status
+	delete(s.k8sMachine, instanceID)
+	s.k8sMachine[instanceID] = m
+	s.lock.Unlock()
+}
+
 func (s *spoterController) updateMachineStatus(instanceID, status string) error {
 	logger := s.logger.WithFields(log.Fields{
 		"func": "updateMachineStatus",
@@ -88,9 +97,24 @@ func (s *spoterController) allocMachine(label string, price float64,
 		return "", "", err
 	}
 
+	var m K8sMachine
+	timestamp := time.Now().Unix()
+	tm_str := time.Unix(timestamp, 0)
+
+	m.Hostname = getK8SNodeName(resp.Hostname)
+	m.Region = configs.Region
+	m.ImageId = configs.ImageID
+	m.InstanceType = label
+	m.SpotWithPriceLimit = price
+	m.BandWidth = bandwidth
+	m.PublicIP = resp.EipAddress
+	m.PrivateIP = resp.InnerAddress
+	m.Status = configs.MachineCreated
+	m.CreatedTime = tm_str.Format("2006-01-02 03:04:05 PM")
+
 	sql := "INSERT INTO machine_info(hostname, region, image_id, instance_type,"
 	sql += " spot_price_limit, bandwith, instance_id, public_ip, private_ip,"
-	sql += " status) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	sql += " status, create_time) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
 	logger.Debugf("sql : %s\n", sql)
 
@@ -101,24 +125,20 @@ func (s *spoterController) allocMachine(label string, price float64,
 	}
 	defer stmtIns.Close()
 
-	if _, err := stmtIns.Exec(getK8SNodeName(resp.Hostname), configs.Region, configs.ImageID,
-		label, price, bandwidth, resp.InstanceID, resp.EipAddress, resp.InnerAddress,
-		configs.MachineCreated); err != nil {
+	if _, err := stmtIns.Exec(m.Hostname, m.Region, m.ImageId, m.InstanceType,
+		m.SpotWithPriceLimit, m.BandWidth, resp.InstanceID, m.PublicIP, m.PrivateIP,
+		m.Status, m.CreatedTime); err != nil {
 		logger.Fatal("Failed to insert into mysql with: %v\n", err)
 		return "", "", err
 	}
 
-	/*
-		sql := "INSERT INTO machine_info(hostname, region, image_id, instance_type,"
-		sql += " spot_price_limit, bandwith, instance_id, public_ip, private_ip,"
-		sql += " status) values('" + getK8SNodeName(resp.Hostname) + "', '" + configs.Region
-		sql += "', '" + configs.ImageID + "', '" + label + "', " + strconv.FormatFloat(price, 'g', -1, 64)
-		sql += ", " + strconv.FormatInt(int64(bandwidth), 10) + ", '" + resp.Hostname + "', '', '"
-		sql += resp.InnerAddress + "', '" + configs.MachineCreated + "'"
-	*/
+	s.lock.Lock()
+	delete(s.k8sMachine, resp.InstanceID)
+	s.k8sMachine[resp.InstanceID] = m
+	s.lock.Unlock()
 
 	logger.Debug("update machine status [machine-created] OK.\n")
-	return resp.EipAddress, resp.Hostname, nil
+	return resp.InnerAddress, resp.InstanceID, nil
 }
 
 func (s *spoterController) installK8sBase(hostIp, instanceID string) error {
@@ -145,6 +165,8 @@ func (s *spoterController) installK8sBase(hostIp, instanceID string) error {
 		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
+
+	s.setK8sMachine(instanceID, configs.MachineInstalled)
 
 	logger.Debug("update machine status [machine-installed] OK.\n")
 	return nil
@@ -224,15 +246,21 @@ func (s *spoterController) joinIntoK8s(hostIp, kubeToken, instanceID string) err
 		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
+
+	s.setK8sMachine(instanceID, configs.MachineJoined)
+
 	logger.Debug("update machine status [machine-joined] OK.\n")
 	return nil
 }
 
-func (s *spoterController) waitNodeReady(hostName string) {
+func (s *spoterController) waitNodeReady(instanceID string) {
 	logger := s.logger.WithFields(log.Fields{
 		"func": "waitNodeReady",
 	})
+
 	retry := 5
+	m := s.k8sMachine[instanceID]
+
 	cmds := []string{
 		configs.TimeCMD,
 		configs.TimeoutS,
@@ -240,7 +268,7 @@ func (s *spoterController) waitNodeReady(hostName string) {
 		"--kubeconfig=" + configs.KubeConfig,
 		"get",
 		"no",
-		getK8SNodeName(hostName),
+		getK8SNodeName(m.Hostname),
 	}
 	logger.Infof("CMD: %v.", cmds)
 
@@ -257,11 +285,14 @@ func (s *spoterController) waitNodeReady(hostName string) {
 	}
 }
 
-func (s *spoterController) labelNode(hostName, label string) error {
+func (s *spoterController) labelNode(instanceID, label string) error {
 	logger := s.logger.WithFields(log.Fields{
 		"func": "labelNode",
 	})
+
 	retry := 3
+	m := s.k8sMachine[instanceID]
+
 	cmds := []string{
 		configs.TimeCMD,
 		configs.TimeoutS,
@@ -269,7 +300,7 @@ func (s *spoterController) labelNode(hostName, label string) error {
 		"--kubeconfig=" + configs.KubeConfig,
 		"label",
 		"no",
-		strings.ToLower(hostName),
+		getK8SNodeName(m.Hostname),
 		configs.AliyunECSLabel + "=" + label,
 	}
 	logger.Infof("CMD: %v.", cmds)
@@ -290,10 +321,13 @@ func (s *spoterController) labelNode(hostName, label string) error {
 		return err
 	}
 
-	if err = s.updateMachineStatus(hostName, configs.MachineRunning); err != nil {
+	if err = s.updateMachineStatus(instanceID, configs.MachineRunning); err != nil {
 		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
+
+	s.setK8sMachine(instanceID, configs.MachineRunning)
+
 	logger.Debug("update machine status [machine-running] OK.\n")
 	return nil
 }
@@ -302,13 +336,13 @@ func (s *spoterController) joinNode(label string, price float64, bandwidth int32
 		"func": "rebalance",
 	})
 
-	hostIp, hostName, err := s.allocMachine(label, price, bandwidth)
+	hostIp, instanceID, err := s.allocMachine(label, price, bandwidth)
 	if err != nil {
 		logger.Errorf("Failed to alloc Machine, due to: %v", err)
 		return
 	}
 
-	if err := s.installK8sBase(hostIp, hostName); err != nil {
+	if err := s.installK8sBase(hostIp, instanceID); err != nil {
 		logger.Errorf("Failed to install k8s base, due to: %v", err)
 		return
 	}
@@ -319,14 +353,14 @@ func (s *spoterController) joinNode(label string, price float64, bandwidth int32
 		return
 	}
 
-	if err = s.joinIntoK8s(hostIp, kubeToken, hostName); err != nil {
+	if err = s.joinIntoK8s(hostIp, kubeToken, instanceID); err != nil {
 		logger.Errorf("Failed to get join into k8s, due to: %v", err)
 		return
 	}
 
-	s.waitNodeReady(hostName)
+	s.waitNodeReady(instanceID)
 
-	if err = s.labelNode(hostName, label); err != nil {
+	if err = s.labelNode(instanceID, label); err != nil {
 		logger.Errorf("Failed to label node, due to: %v", err)
 		return
 	}
@@ -372,6 +406,9 @@ func (s *spoterController) removeNodeFromK8s(instanceID string) error {
 		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
+
+	s.setK8sMachine(instanceID, configs.MachineRemoved)
+
 	logger.Debug("update machine status [machine-removed] OK.\n")
 	return nil
 }
@@ -404,6 +441,9 @@ func (s *spoterController) deleteECS(instanceID string) error {
 		logger.Warnf("Failed to update machine status, due to %v\n", err)
 		return err
 	}
+
+	s.setK8sMachine(instanceID, configs.MachineDeleted)
+
 	logger.Debug("update machine status [machine-deleted] OK.\n")
 	return nil
 }
@@ -425,6 +465,10 @@ func (s *spoterController) deleteNode(instanceID string) {
 }
 
 func rfc3339Expired(value string) (bool, error) {
+	if value == "" {
+		return false, nil
+	}
+
 	t, err := time.Parse(time.RFC3339, value)
 	if err != nil {
 		return false, err

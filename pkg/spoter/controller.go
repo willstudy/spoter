@@ -34,10 +34,11 @@ type K8sMachine struct {
 	SpotWithPriceLimit float64
 	BandWidth          int32
 
-	InstanceID string
-	PublicIP   string
-	PrivateIP  string
-	Status     string
+	InstanceID  string
+	PublicIP    string
+	PrivateIP   string
+	Status      string
+	CreatedTime string
 }
 
 type spoterController struct {
@@ -211,22 +212,12 @@ func (s *spoterController) Serve(ctx context.Context, quit <-chan struct{}) erro
 	}
 	logger.Debugf("Machine status: %v", s.k8sMachine)
 
-	// 恢复正在删除的 machine 和 其他中断的 machine 的动作
-	s.restoreFromDB()
+	// 后台修复异常处理的 machine 和 其他中断的 machine 的动作
+	go s.restoreAction(quit)
 
 	// 后台不停的检测 spot instance 是否过期
 	go s.detectController(ctx, quit)
 
-	/*
-		var resp AllocMachineResponse
-		str := "{\"EipAddress\":\"39.105.2.200\",\"msg\":\"CreateECSsuccessfully.\",\"Hostname\":\"iZ2zeifctth7468lg6e225Z\",\"code\":0}"
-		logger.Debugf("str: %v\n", str)
-		if err = json.Unmarshal([]byte(str), &resp); err != nil {
-			logger.Errorf("Json Unmarshal failed with %v", err)
-			//return "", "", err
-		}
-		logger.Debugf("resp: %#v\n", resp)
-	*/
 	for {
 		select {
 		case <-quit:
