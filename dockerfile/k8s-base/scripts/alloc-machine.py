@@ -8,6 +8,7 @@ from aliyunsdkcore import client
 from aliyunsdkecs.request.v20140526.CreateInstanceRequest import CreateInstanceRequest
 from aliyunsdkecs.request.v20140526.DescribeInstancesRequest import DescribeInstancesRequest
 from aliyunsdkecs.request.v20140526.StartInstanceRequest import StartInstanceRequest
+from aliyunsdkecs.request.v20140526.StopInstanceRequest import StopInstanceRequest
 from aliyunsdkecs.request.v20140526.AllocateEipAddressRequest import AllocateEipAddressRequest
 from aliyunsdkecs.request.v20140526.AssociateEipAddressRequest import AssociateEipAddressRequest
 from aliyunsdkecs.request.v20140526.DeleteInstanceRequest import DeleteInstanceRequest
@@ -15,8 +16,11 @@ from aliyunsdkecs.request.v20140526.ReleaseEipAddressRequest import ReleaseEipAd
 from aliyunsdkecs.request.v20140526.UnassociateEipAddressRequest import UnassociateEipAddressRequest
 
 MAX_RETRY = 3
+# 停止实例后，多久触发删除
+MAX_WAIT_S = 3
 CREATE_ACTION = "create"
 DELETE_ACTION = "delete"
+STATUS_ACTION = "status"
 
 logger = logging.getLogger("Alloc-ECS")
 formatter = logging.Formatter('%(asctime)s %(funcName)s +%(lineno)d %(levelname)s: %(message)s')
@@ -47,6 +51,7 @@ class ECS_Operator:
         self.instanceID = ""
         self.eip = ""
         self.assoID = ""
+        self.vSwitchID = ""
 
     def set_AccessKey(self, accessKey):
         self.accessKey = accessKey
@@ -90,6 +95,9 @@ class ECS_Operator:
     def set_AssoID(self, assoID):
         self.assoID = assoID
 
+    def set_VSwitchID(self, vSwitchID):
+        self.vSwitchID = vSwitchID
+
     def createECS_Client(self):
         return client.AcsClient(self.accessKey, self.secretKey, self.region)
 
@@ -98,6 +106,34 @@ class ECS_Operator:
             return self.createInstance()
         elif self.action == DELETE_ACTION:
             return self.deleteInstance()
+        elif self.action == STATUS_ACTION:
+            return self.getStatus()
+
+    def getStatus(self):
+        clt = self.createECS_Client()
+        logger.debug("get instance: " + self.instanceID + " status.")
+        response = self.getInstanceDetail(clt, self.instanceID)
+        if response['code'] != 0:
+            return response
+
+        logger.info(response)
+
+        ret = {}
+
+        ret['LockReason'] = ''
+        lock_reason = response['msg'].get('Instances').get('Instance')[0].get('OperationLocks').get('LockReason')
+        if lock_reason is not None:
+            for reason == "Recycling":
+                ret['LockReason'] = 'Recycling'
+
+        ret['InstanceID'] = instanceID
+        ret['ExpiredTime'] = response['msg'].get('Instances').get('Instance')[0].get('ExpiredTime')
+        ret['EipAddress'] = response['msg'].get('Instances').get('Instance')[0].get('EipAddress').get('IpAddress')
+        ret['Hostname'] = response['msg'].get('Instances').get('Instance')[0].get('HostName')
+        ret['InnerAddress'] = response['msg'].get('Instances').get('Instance')[0].get('VpcAttributes').get('PrivateIpAddress').get('IpAddress')[0]
+        ret['msg'] = "Create ECS successfully."
+        ret['code'] = 0
+        return response
 
     def deleteInstance(self):
         if self.instanceID != "":
@@ -107,6 +143,25 @@ class ECS_Operator:
 
     def deleteMachine(self):
         clt = self.createECS_Client()
+
+        # 必须先停止 ecs，才可以删除
+        request = StopInstanceRequest()
+        request.set_InstanceId(self.instanceID)
+
+        logger.debug("stop instance: " + self.instanceID)
+        for retry in range(0, MAX_RETRY):
+            resp = self._send_request(clt, request)
+            if resp['code'] != 0:
+                logger.warn("stop instance failed, due to: " + str(resp))
+                continue
+            else:
+                break
+        logger.debug("resp: " + str(resp))
+        if resp['code'] != 0:
+            return resp
+
+        time.Sleep(MAX_WAIT_S)
+
         request = DeleteInstanceRequest()
         request.set_InstanceId(self.instanceID)
 
@@ -116,7 +171,8 @@ class ECS_Operator:
         request.set_AllocationId(self.assoID)
         """
 
-        resp= self._send_request(clt, request)
+        logger.debug("delete instance: " + self.instanceID)
+        resp = self._send_request(clt, request)
         if resp['code'] != 0:
             return resp
 
@@ -124,8 +180,11 @@ class ECS_Operator:
         ret['code'] = 0
         ret['msg'] = "delete machine succ"
         ret['Hostname'] = self.instanceID
+        ret['InstanceID'] = self.instanceID
         ret['InnerAddress'] = ""
         ret['EipAddress'] = ""
+        ret['LockReason'] = ""
+        ret['ExpiredTime'] = ""
         return ret
 
     def deleteEIP(self):
@@ -149,6 +208,7 @@ class ECS_Operator:
         request.set_InstanceChargeType('PostPaid')
         request.set_SpotStrategy('SpotWithPriceLimit')
         request.set_InternetChargeType('PayByTraffic')
+        request.set_VSwitchId(self.vSwitchID)
 
         """步骤
         1. 创建 ECS
@@ -212,6 +272,15 @@ class ECS_Operator:
 
         response = self.getInstanceDetail(clt, instanceID)
         logger.info(response)
+
+        ret['LockReason'] = ''
+        lock_reason = response['msg'].get('Instances').get('Instance')[0].get('OperationLocks').get('LockReason')
+        if lock_reason is not None:
+            for reason == "Recycling":
+                ret['LockReason'] = 'Recycling'
+
+        ret['InstanceID'] = instanceID
+        ret['ExpiredTime'] = response['msg'].get('Instances').get('Instance')[0].get('ExpiredTime')
         ret['EipAddress'] = response['msg'].get('Instances').get('Instance')[0].get('EipAddress').get('IpAddress')
         ret['Hostname'] = response['msg'].get('Instances').get('Instance')[0].get('HostName')
         ret['InnerAddress'] = response['msg'].get('Instances').get('Instance')[0].get('VpcAttributes').get('PrivateIpAddress').get('IpAddress')[0]
@@ -287,6 +356,7 @@ def usage():
     -p or --price: 后付费的价格
     -k or --keyName: SSH 信任的秘钥名
     -b or --bandwidth: ECS 的带宽参数
+    -v or --vSwitchID: ECS 虚拟专用网的 ID
     --action: 执行的动作
     --instanceID: ECS 的 ID 信息
     --eipID: eip 的 ID 信息
@@ -309,11 +379,12 @@ if __name__ == '__main__':
     instanceID = ""
     eipID = ""
     assoID = ""
+    vSwitchID = ""
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "x:a:s:r:i:t:g:p:k:h:b", ["accessKey=",
+        opts, args = getopt.getopt(sys.argv[1:], "x:a:s:r:i:t:g:p:k:h:b:v", ["accessKey=",
         "secretKey=", "region=", "imageID=", "instanceType=", "groupID=", "price=",
-        "keyName=", "bandwidth=", "action=", "instanceID=", "eipID=", "assoID=" "help"])
+        "keyName=", "bandwidth=", "action=", "instanceID=", "eipID=", "assoID=", "vSwitchID=", "help"])
 
         for opt, arg in opts:
             if opt in ("-a", "--accessKey"):
@@ -334,6 +405,8 @@ if __name__ == '__main__':
                 keyName = arg
             elif opt in ("-b", "--bandwidth"):
                 bandwidth = arg
+            elif opt in ("-v", "--vSwitchID"):
+                vSwitchID = arg
             elif opt in ("xxx", "--action"):
                 action = arg
             elif opt in ("xxx", "--instanceID"):
@@ -383,6 +456,9 @@ if __name__ == '__main__':
         if bandwidth == "":
             output['code'] = 1
             output['msg'] = "bandwidth can not be NULL."
+        if vSwitchID == "":
+            output['code'] = 1
+            output['msg'] = "vSwitchID can not be NULL."
 
     if 'code' in output and output['code'] != 0:
         logger.warn(output['msg'])
@@ -402,6 +478,7 @@ if __name__ == '__main__':
     ep.set_InstanceID(instanceID)
     ep.set_EIP(eipID)
     ep.set_AssoID(assoID)
+    ep.set_VSwitchID(vSwitchID)
 
     ret = ep.do_action()
     logger.debug(ret)
@@ -420,6 +497,12 @@ if __name__ == '__main__':
         result = result + ', "InnerAddress": "' + str(ret['InnerAddress']) + '"'
     if 'Hostname' in ret:
         result = result + ', "Hostname": "' + str(ret['Hostname']) + '"'
+    if 'InstanceID' in ret:
+        result = result + ', "InstanceID": "' + str(ret['InstanceID']) + '"'
+    if 'ExpiredTime' in ret:
+        result = result + ', "ExpiredTime": "' + str(ret['ExpiredTime']) + '"'
+    if 'LockReason' in ret:
+        result = result + ', "LockReason": "' + str(ret['LockReason']) + '"'
     result = result + '}'
 
     logger.debug("result: %s", result)

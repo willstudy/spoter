@@ -60,8 +60,9 @@ func (s *spoterController) allocMachine(label string, price float64,
 		"--secretKey=" + configs.SecretKey,
 		"--region=" + configs.Region,
 		"--imageID=" + configs.ImageID,
-		"--instanceType=" + configs.InstanceType,
+		"--instanceType=" + label,
 		"--groupID=" + configs.SecurityGroupID,
+		"--vSwitchID=" + configs.VSwitchID,
 		"--keyName=" + configs.SSHKeyName,
 		"--price=" + strconv.FormatFloat(price, 'g', -1, 64),
 		"--bandwidth=" + strconv.FormatInt(int64(bandwidth), 10),
@@ -101,7 +102,7 @@ func (s *spoterController) allocMachine(label string, price float64,
 	defer stmtIns.Close()
 
 	if _, err := stmtIns.Exec(getK8SNodeName(resp.Hostname), configs.Region, configs.ImageID,
-		label, price, bandwidth, resp.Hostname, resp.EipAddress, resp.InnerAddress,
+		label, price, bandwidth, resp.InstanceID, resp.EipAddress, resp.InnerAddress,
 		configs.MachineCreated); err != nil {
 		logger.Fatal("Failed to insert into mysql with: %v\n", err)
 		return "", "", err

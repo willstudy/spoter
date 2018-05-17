@@ -18,4 +18,7 @@ type AllocMachineResponse struct {
 	EipAddress   string `json:"EipAddress,omitempty"`
 	InnerAddress string `json:"InnerAddress,omitempty"`
 	Hostname     string `json:"Hostname,omitempty"`
+	InstanceID   string `json:"InstanceID,omitempty"`
+	ExpiredTime  string `json:"ExpiredTime,omitempty"`
+	LockReason   string `json:"LockReason,omitempty"`
 }

@@ -1,12 +1,13 @@
 package configs
 
 const (
-	AccessKey       = "aliyun-accessKey"
-	SecretKey       = "aliyun-secretKey"
-	Region          = "cn-beijing"
+	AccessKey       = "LTAIQaC85dlJS92Z"
+	SecretKey       = "i4cLZzwKRcP3FcH214nSDEHQRL0WpM"
+	Region          = "cn-shenzhen"
 	ImageID         = "centos_7_04_64_20G_alibase_201701015.vhd"
-	InstanceType    = "ecs.xn4.small"
-	SecurityGroupID = "sg-2ze65h1sejzb0yuf427v"
+	InstanceType    = "ecs.r5.large"
+	SecurityGroupID = "sg-wz946uf9ftw81xv2o0yp"
+	VSwitchID       = "vsw-wz90c4xhi1etgxf6cedps"
 	SpotPriceLimit  = "0.08"
 	SSHKeyName      = "k8s"
 )
