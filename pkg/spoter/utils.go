@@ -423,3 +423,11 @@ func (s *spoterController) deleteNode(instanceID string) {
 		return
 	}
 }
+
+func rfc3339Expired(value string) (bool, error) {
+	t, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return false, err
+	}
+	return t.Unix()-time.Now().Unix() <= configs.ExpireDuration, nil
+}
